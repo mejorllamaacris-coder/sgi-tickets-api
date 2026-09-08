@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENTIDADES BASE DEL MVP (Para que sea 100% independiente)
+// ═══════════════════════════════════════════════════════════════
+
+model usuarios {
+  id             Int            @id @default(autoincrement())
+  nombre         String         @db.VarChar(100)
+  email          String         @unique @db.VarChar(100)
+  password_hash  String         @db.VarChar(255)
+  id_area        Int?
+  area           areas?         @relation(fields: [id_area], references: [id])
+  fecha_creacion DateTime       @default(now())
+  
+  tickets_creados pd_tickets[]  @relation("TicketCreador")
+  tickets_asignados pd_tickets[] @relation("TicketAsignado")
+
+  @@map("usuarios")
+}
+
+model areas {
+  id         Int            @id @default(autoincrement())
+  nombre     String         @db.VarChar(100)
+  activo     Boolean        @default(true)
+  
+  usuarios   usuarios[]
+  categorias pd_categorias[]
+  tableros   pd_tableros[]
+  tickets    pd_tickets[]
+
+  @@map("areas")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CATÁLOGOS DE PRODUCTIVIDAD
+// ═══════════════════════════════════════════════════════════════
+
+model pd_complejidades {
+  id               Int          @id @default(autoincrement())
+  nombre           String       @db.VarChar(50)
+  color            String       @default("#9ca3af") @db.VarChar(7)
+  horas_estimadas  Int
+  activo           Boolean      @default(true)
+  tickets          pd_tickets[]
+
+  @@map("pd_complejidades")
+}
+
+model pd_estados {
+  id        Int          @id @default(autoincrement())
+  nombre    String       @db.VarChar(50)
+  color     String       @default("#3b82f6") @db.VarChar(7)
+  es_final  Boolean      @default(false)
+  tickets   pd_tickets[]
+
+  @@map("pd_estados")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENTIDADES PRINCIPALES
+// ═══════════════════════════════════════════════════════════════
+
+model pd_tickets {
+  id                Int              @id @default(autoincrement())
+  codigo            String           @unique @db.VarChar(20)
+  titulo            String           @db.VarChar(255)
+  descripcion       String?          @db.Text
+  tipo              String           @default("soporte") @db.VarChar(20)
+  
+  id_estado         Int
+  id_lista          Int?
+  lista             pd_listas?       @relation(fields: [id_lista], references: [id])
+  estado            pd_estados       @relation(fields: [id_estado], references: [id])
+  
+  id_complejidad    Int
+  complejidad       pd_complejidades @relation(fields: [id_complejidad], references: [id])
+  
+  id_categoria      Int?
+  categoria         pd_categorias?   @relation(fields: [id_categoria], references: [id])
+  
+  id_area           Int
+  area              areas            @relation(fields: [id_area], references: [id])
+  
+  id_asignado       Int?
+  usuario_asignado  usuarios?        @relation("TicketAsignado", fields: [id_asignado], references: [id])
+  
+  id_creador        Int
+  usuario_creador   usuarios         @relation("TicketCreador", fields: [id_creador], references: [id])
+  
+  fecha_limite      DateTime?
+  fecha_creacion    DateTime         @default(now())
+  fecha_actualizacion DateTime       @updatedAt
+
+  comentarios       pd_comentarios[]
+  historiales       pd_historial[]
+  checklists        pd_checklists[]
+
+  @@index([id_area])
+  @@index([id_asignado])
+  @@index([id_estado])
+  @@map("pd_tickets")
+}
+
+model pd_categorias {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @db.VarChar(100)
+  descripcion String?      @db.Text
+  id_area     Int
+  area        areas        @relation(fields: [id_area], references: [id])
+  activo      Boolean      @default(true)
+  tickets     pd_tickets[]
+
+  @@index([id_area])
+  @@map("pd_categorias")
+}
+
+model pd_comentarios {
+  id             Int       @id @default(autoincrement())
+  id_ticket      Int
+  ticket         pd_tickets @relation(fields: [id_ticket], references: [id], onDelete: Cascade)
+  id_usuario     Int
+  contenido      String    @db.Text
+  es_interno     Boolean   @default(false)
+  id_padre       Int?
+  fecha_creacion DateTime  @default(now())
+
+  @@index([id_ticket])
+  @@map("pd_comentarios")
+}
+
+model pd_historial {
+  id             Int       @id @default(autoincrement())
+  id_ticket      Int
+  ticket         pd_tickets @relation(fields: [id_ticket], references: [id], onDelete: Cascade)
+  id_usuario     Int
+  accion         String    @db.VarChar(100)
+  detalle        String?   @db.Text
+  fecha_creacion DateTime  @default(now())
+
+  @@index([id_ticket])
+  @@map("pd_historial")
+}
+
+model pd_checklists {
+  id             Int       @id @default(autoincrement())
+  id_ticket      Int
+  ticket         pd_tickets @relation(fields: [id_ticket], references: [id], onDelete: Cascade)
+  descripcion    String    @db.VarChar(255)
+  completado     Boolean   @default(false)
+  fecha_creacion DateTime  @default(now())
+
+  @@index([id_ticket])
+  @@map("pd_checklists")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KANBAN
+// ═══════════════════════════════════════════════════════════════
+
+model pd_tableros {
+  id          Int              @id @default(autoincrement())
+  nombre      String           @db.VarChar(100)
+  descripcion String?          @db.Text
+  id_area     Int
+  area        areas            @relation(fields: [id_area], references: [id])
+  activo      Boolean          @default(true)
+  listas      pd_listas[]
+  miembros    pd_miembros_tablero[]
+
+  @@index([id_area])
+  @@map("pd_tableros")
+}
+
+model pd_listas {
+  id          Int       @id @default(autoincrement())
+  id_tablero  Int
+  tablero     pd_tableros @relation(fields: [id_tablero], references: [id], onDelete: Cascade)
+  nombre      String    @db.VarChar(50)
+  orden       Int
+  wip_limit   Int?
+  tickets         pd_tickets[]
+
+  @@index([id_tablero])
+  @@map("pd_listas")
+}
+
+model pd_miembros_tablero {
+  id          Int       @id @default(autoincrement())
+  id_tablero  Int
+  tablero     pd_tableros @relation(fields: [id_tablero], references: [id], onDelete: Cascade)
+  id_usuario  Int
+  rol         String    @db.VarChar(20)
+  fecha_ingreso DateTime @default(now())
+
+  @@unique([id_tablero, id_usuario])
+  @@index([id_tablero])
+  @@map("pd_miembros_tablero")
+}
