@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Environment (NUNCA subir secretos)
+.env
+.env.local
+.env.production
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Prisma Generated Client (¡Esto es lo que estaba inundando Git!)
+src/generated/prisma/
+node_modules/.prisma/
+
+# Variables de entorno (Nunca subir secretos)
+.env
+.env.local
+.env.production
+
+# Archivos de compilación y caché
+dist/
+*.tsbuildinfo

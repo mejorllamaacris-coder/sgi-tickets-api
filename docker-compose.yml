@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sgi_tickets_db
+    environment:
+      POSTGRES_USER: sgi_user
+      POSTGRES_PASSWORD: sgi_password_2026
+      POSTGRES_DB: sgi_tickets
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
