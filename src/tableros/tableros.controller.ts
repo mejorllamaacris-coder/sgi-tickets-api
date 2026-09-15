@@ -1,28 +1,40 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
-import { TablerosService } from './tableros.service.js';
-import { TicketsService } from '../tickets/tickets.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { Controller, Get, Post, Patch, Param, Query, Body, UseGuards, Request } from "@nestjs/common";
+import { TablerosService } from "./tableros.service.js";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
 
-@Controller('tableros')
+@Controller("tableros")
+@UseGuards(JwtAuthGuard)
 export class TablerosController {
-  constructor(
-    private readonly tablerosService: TablerosService,
-    private readonly ticketsService: TicketsService,
-  ) {}
+  constructor(private readonly tablerosService: TablerosService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  async getTablero(@Param('id', ParseIntPipe) id: number) {
-    return this.tablerosService.getTableroConListas(id);
+  @Get()
+  findAll(@Query("areas") areas?: string) {
+    const idAreas = areas ? areas.split(",").map(Number) : undefined;
+    return this.tablerosService.findAll(idAreas);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('tickets/:id/mover')
-  async moverTicket(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { id_lista: number; id_estado?: number },
-    @Request() req: any
-  ) {
-    return this.ticketsService.moverTicket(id, body.id_lista, body.id_estado, req.user.id);
+  @Post()
+  crear(@Body() body: any, @Request() req: any) {
+    return this.tablerosService.crear(body, req.user.sub);
+  }
+
+  @Get(":id")
+  findOne(@Param("id") id: string) {
+    return this.tablerosService.findOne(+id);
+  }
+
+  @Patch(":id/desactivar")
+  desactivar(@Param("id") id: string) {
+    return this.tablerosService.desactivar(+id);
+  }
+
+  @Patch(":id/listas/reorder")
+  reordenarListas(@Param("id") id: string, @Body() movimientos: any[]) {
+    return this.tablerosService.reordenarListas(+id, movimientos);
+  }
+
+  @Patch("tickets/:id_ticket/mover")
+  moverTicket(@Param("id_ticket") idTicket: string, @Body() body: any, @Request() req: any) {
+    return this.tablerosService.moverTicket(+idTicket, body.id_lista, req.user.sub);
   }
 }
