@@ -1,44 +1,87 @@
-import { Controller, Get, Post, Patch, Body, UseGuards, Request, Param, ParseIntPipe } from '@nestjs/common';
-import { TicketsService } from './tickets.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { ActualizarTicketDto } from './dto/actualizar-ticket.dto.js';
+import {
+  Controller, Get, Post, Body, Patch, Param,
+  UseGuards, Request, BadRequestException, Query, ParseIntPipe,
+} from "@nestjs/common";
+import { TicketsService } from "./tickets.service.js";
+import { CrearTicketDto } from "./dto/crear-ticket.dto.js";
+import { ActualizarTicketDto } from "./dto/actualizar-ticket.dto.js";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
 
-@Controller('tickets')
+@Controller("tickets")
+@UseGuards(JwtAuthGuard)
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @Get('areas')
-  async getAreas() {
-    return this.ticketsService.getAreas();
+  @Get("areas")
+  getAreas() { return this.ticketsService.getAreas(); }
+
+  @Get("estados")
+  getEstados() { return this.ticketsService.getEstados(); }
+
+  @Get("complejidades")
+  getComplejidades() { return this.ticketsService.getComplejidades(); }
+
+  @Get("categorias")
+  getCategorias(@Query("id_area") idArea?: string) {
+    return this.ticketsService.getCategorias(idArea ? +idArea : undefined);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Get("asignables")
+  getAsignables(@Query("area", ParseIntPipe) idArea: number) {
+    return this.ticketsService.getAsignables(idArea);
+  }
+
   @Get()
-  async getTickets() {
-    return this.ticketsService.getTickets();
+  getTickets(@Query() query: any, @Request() req: any) {
+    return this.ticketsService.getTicketsFiltrados(query, req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Get(":id")
+  getTicketById(@Param("id") id: string, @Request() req: any) {
+    const numId = +id;
+    if (isNaN(numId)) throw new BadRequestException("ID invalido");
+    return this.ticketsService.getTicketById(numId, req.user);
+  }
+
+  @Get(":id/historial")
+  getHistorial(@Param("id") id: string) {
+    return this.ticketsService.getHistorial(+id);
+  }
+
   @Post()
-  async createTicket(@Body() body: any, @Request() req: any) {
-    return this.ticketsService.createTicket({ ...body, id_creador: req.user.id });
+  create(@Body() dto: CrearTicketDto, @Request() req: any) {
+    return this.ticketsService.createTicket({ ...dto, id_creador: req.user.id });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id')
-  async updateTicket(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateDto: ActualizarTicketDto,
-    @Request() req: any
-  ) {
-    return this.ticketsService.updateTicket(id, updateDto, req.user.id);
+  @Patch(":id")
+  update(@Param("id") id: string, @Body() dto: ActualizarTicketDto, @Request() req: any) {
+    const numId = +id;
+    if (isNaN(numId)) throw new BadRequestException("ID invalido");
+    return this.ticketsService.updateTicket(numId, dto, req.user);
   }
 
-  // NUEVO: Endpoint para ver el historial
-  @UseGuards(JwtAuthGuard)
-  @Get(':id/historial')
-  async getHistorial(@Param('id', ParseIntPipe) id: number) {
-    return this.ticketsService.getHistorial(id);
+  @Patch(":id/estado")
+  cambiarEstado(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.ticketsService.cambiarEstado(+id, body.id_estado, req.user);
+  }
+
+  @Patch(":id/asignar")
+  asignar(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.ticketsService.asignarTicket(+id, body.id_asignado, req.user);
+  }
+
+  @Patch(":id/eliminar")
+  eliminar(@Param("id") id: string, @Request() req: any) {
+    return this.ticketsService.eliminarTicket(+id, req.user);
+  }
+
+  @Post(":id/promover")
+  promover(@Param("id") id: string, @Request() req: any) {
+    return this.ticketsService.promoverTicket(+id, req.user);
+  }
+
+  @Patch("tickets/:id_ticket/mover")
+  mover(@Param("id_ticket") id: string, @Body() body: any, @Request() req: any) {
+    return this.ticketsService.moverTicket(+id, body.id_lista, body.id_estado, req.user.id);
   }
 }
