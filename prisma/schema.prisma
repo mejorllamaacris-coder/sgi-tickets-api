@@ -8,9 +8,49 @@ datasource db {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ENTIDADES BASE DEL MVP (Para que sea 100% independiente)
+// ROLES Y PERMISOS (NUEVO)
 // ═══════════════════════════════════════════════════════════════
+model roles {
+  id          Int             @id @default(autoincrement())
+  nombre      String          @unique @db.VarChar(50)
+  descripcion String?         @db.Text
+  permisos    String[]        @default([])
+  usuarios    usuarios[]
+  modulos     roles_modulos[]
 
+  @@map("roles")
+}
+
+model modulos {
+  id          Int             @id @default(autoincrement())
+  nombre      String          @unique @db.VarChar(50)
+  descripcion String?         @db.Text
+  activo      Boolean         @default(true)
+  permisos    roles_modulos[]
+
+  @@map("modulos")
+}
+
+model roles_modulos {
+  id        Int     @id @default(autoincrement())
+  id_rol    Int
+  id_modulo Int
+  C         Boolean @default(false)
+  R         Boolean @default(false)
+  U         Boolean @default(false)
+  D         Boolean @default(false)
+  mod_admin Boolean @default(false)
+
+  rol       roles   @relation(fields: [id_rol], references: [id])
+  modulo    modulos @relation(fields: [id_modulo], references: [id])
+
+  @@unique([id_rol, id_modulo])
+  @@map("roles_modulos")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENTIDADES BASE
+// ═══════════════════════════════════════════════════════════════
 model usuarios {
   id             Int            @id @default(autoincrement())
   nombre         String         @db.VarChar(100)
@@ -18,10 +58,18 @@ model usuarios {
   password_hash  String         @db.VarChar(255)
   id_area        Int?
   area           areas?         @relation(fields: [id_area], references: [id])
+  
+  // NUEVO: Relación con roles
+  id_rol         Int?
+  rol            roles?         @relation(fields: [id_rol], references: [id])
+  
+  activo         Boolean        @default(true)
   fecha_creacion DateTime       @default(now())
   
   tickets_creados pd_tickets[]  @relation("TicketCreador")
   tickets_asignados pd_tickets[] @relation("TicketAsignado")
+  comentarios     pd_comentarios[]
+  historiales     pd_historial[]
 
   @@map("usuarios")
 }
@@ -42,7 +90,6 @@ model areas {
 // ═══════════════════════════════════════════════════════════════
 // CATÁLOGOS DE PRODUCTIVIDAD
 // ═══════════════════════════════════════════════════════════════
-
 model pd_complejidades {
   id               Int          @id @default(autoincrement())
   nombre           String       @db.VarChar(50)
@@ -67,7 +114,6 @@ model pd_estados {
 // ═══════════════════════════════════════════════════════════════
 // ENTIDADES PRINCIPALES
 // ═══════════════════════════════════════════════════════════════
-
 model pd_tickets {
   id                Int              @id @default(autoincrement())
   codigo            String           @unique @db.VarChar(20)
@@ -98,6 +144,8 @@ model pd_tickets {
   fecha_limite      DateTime?
   fecha_creacion    DateTime         @default(now())
   fecha_actualizacion DateTime       @updatedAt
+  eliminado         Boolean          @default(false)
+  id_area_origen    Int?
 
   comentarios       pd_comentarios[]
   historiales       pd_historial[]
@@ -116,6 +164,7 @@ model pd_categorias {
   id_area     Int
   area        areas        @relation(fields: [id_area], references: [id])
   activo      Boolean      @default(true)
+  tipo_ticket String       @default("soporte") @db.VarChar(20)
   tickets     pd_tickets[]
 
   @@index([id_area])
@@ -127,6 +176,7 @@ model pd_comentarios {
   id_ticket      Int
   ticket         pd_tickets @relation(fields: [id_ticket], references: [id], onDelete: Cascade)
   id_usuario     Int
+  usuario        usuarios   @relation(fields: [id_usuario], references: [id])
   contenido      String    @db.Text
   es_interno     Boolean   @default(false)
   id_padre       Int?
@@ -141,6 +191,7 @@ model pd_historial {
   id_ticket      Int
   ticket         pd_tickets @relation(fields: [id_ticket], references: [id], onDelete: Cascade)
   id_usuario     Int
+  usuario        usuarios   @relation(fields: [id_usuario], references: [id])
   accion         String    @db.VarChar(100)
   detalle        String?   @db.Text
   fecha_creacion DateTime  @default(now())
@@ -164,7 +215,6 @@ model pd_checklists {
 // ═══════════════════════════════════════════════════════════════
 // KANBAN
 // ═══════════════════════════════════════════════════════════════
-
 model pd_tableros {
   id          Int              @id @default(autoincrement())
   nombre      String           @db.VarChar(100)
@@ -186,7 +236,7 @@ model pd_listas {
   nombre      String    @db.VarChar(50)
   orden       Int
   wip_limit   Int?
-  tickets         pd_tickets[]
+  tickets     pd_tickets[]
 
   @@index([id_tablero])
   @@map("pd_listas")
